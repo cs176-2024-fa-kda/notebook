@@ -1,0 +1,102 @@
+import pandas as pd
+import os
+#https://www.kaggle.com/datasets/dhruvildave/spotify-charts/data
+#BIG LIST OF SONGS
+big_df = pd.read_csv("us_charts.csv")
+
+# https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset
+#Songs and their values of music as assigned by Spotify       
+dancability_df = pd.read_csv("dataset.csv")
+#display(dancability_df)
+# https://www.kaggle.com/datasets/irynatokarchuk/top-streamed-spotify-songs-by-year-2010-2023
+#Arrangement of the most popular songs from 2010-2023
+songs_df = pd.read_csv("spotify_full_list_20102023.csv")      
+# preprocess songs_df
+songs_df[['Artist', 'Title']] = songs_df['Artist and Title'].str.extract('^(.*?)\s-\s(.*)')
+
+# https://www.kaggle.com/datasets/nelgiriyewithana/most-streamed-spotify-songs-2024
+#Number of streams for a popular song
+sptf_df = pd.read_csv("Most_Streamed_Spotify_Songs_2024.csv", encoding='cp1252')
+
+###                   ###
+###THE MASTER DATASET ###
+###                   ###
+
+#The master dataset relating all these datasets together      
+just_impeccable_df = pd.merge(big_df, dancability_df, how='inner', left_on=['artist', 'title'], right_on=['artists', 'track_name'])
+just_impeccable_df = pd.merge(just_impeccable_df, songs_df, how='inner', left_on=['artist', 'title'], right_on=['Artist', 'Title'])
+#just_impeccable_df = pd.merge(dancability_df, songs_df, how='inner', left_on=['artists', 'track_name'], right_on=['Artist', 'Title'])
+#Make only one title and artist column instead of like 5 of them
+just_impeccable_df = just_impeccable_df.drop(columns = ['track_name','Artist and Title','artists'])
+#Clean up the rest of the unused data
+just_impeccable_df = just_impeccable_df.drop(columns = ['track_id','Unnamed: 0_x', 'Unnamed: 0_y','track_genre'])
+just_impeccable_df = just_impeccable_df.drop_duplicates(subset=['Title'], keep='first') #Drop songs with duplicate titles
+display(just_impeccable_df)
+#print(just_impeccable_df['year'].min())
+#print(just_impeccable_df['year'].max())
+
+###
+The multicolored genre comparison graph
+###
+#Get the data of the year and their genres so that we can count the streams
+filtered_df = just_impeccable_df[['year', 'main_genre', 'Streams']].dropna()
+
+#Count up the data so that we can know how many streams per genre
+grouped = filtered_df.groupby(['year', 'main_genre']).sum().reset_index()
+
+#Pivot the table so it can be graphed on 2 axis
+pivot_table = grouped.pivot(index='year', columns='main_genre', values='Streams').fillna(0)
+
+#Plot the data
+plt.figure(figsize=(14, 8))
+pivot_table.plot(kind='line', marker='o', figsize=(14, 8))
+plt.title('Streams by Genre Over the Years', fontsize=16)
+plt.xlabel('Year', fontsize=12)
+plt.ylabel('Total Streams', fontsize=12)
+plt.legend(title='Genre', loc='upper left')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+###
+Normalized '''Heatmap''' of all the audio features
+###
+from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
+
+# List of audio features
+audio_features = [
+    'danceability', 'energy', 'duration_ms', 'loudness', 'speechiness', 
+    'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo'
+]
+
+#Prepare the data for normalization
+feature_values_df = just_impeccable_df[audio_features]
+
+#Normalize the data using MinMaxScaler (idk how it does this but it sure is normalized)
+scaler = MinMaxScaler()
+normalized_values = scaler.fit_transform(feature_values_df)
+normalized_df = pd.DataFrame(normalized_values, columns=audio_features)
+
+# Create a scatterplot for normalized data
+plt.figure(figsize=(14, 8))
+
+# For each feature, scatter its normalized values with some jitter to separate points
+for i, feature in enumerate(audio_features):
+    plt.scatter(
+        normalized_df[feature],  # Normalized values on x-axis
+        [feature] * len(normalized_df),  # Feature name on y-axis
+        alpha=0.5,
+        s=5,
+        label=feature
+    )
+
+# Add labels and title
+plt.title('Scatterplot of Normalized Audio Feature Values', fontsize=16)
+plt.ylabel('Audio Features', fontsize=14)
+plt.xlabel('Normalized Feature Value (0 to 1)', fontsize=14)
+plt.yticks(fontsize=12)
+plt.grid(True, alpha=0.5)
+plt.tight_layout()
+plt.savefig('Normalized.png')
+plt.show()
