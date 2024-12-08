@@ -1,2 +1,2 @@
-# What We Listen Today ?: An Analysis of Music Consumption in Digital Era
-**_Purdue CS176 Fall 2024 Final Report_**
+# What Do We Listen To Today? An Analysis of Popularity in Music Streaming
+**_Purdue CS176 Fall 2024 Data Wrangling Project_**
